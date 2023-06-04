@@ -175,12 +175,14 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
 
     def button(self, button_id):
         """Return True if button is currently pressed
+
         :param int button_id: 0-15 id number from PS2ButtonEvent.id or PS2Button.*
         """
         return (self._buttons & (1 << button_id)) == 0
 
     def analog_button(self, button_id):
         """Return analog pressure value for button
+
         :param int button_id 0-15 id number PS2ButtonEvent.id or PS2Button.*
         """
         return self.ps2data[PS2Button.button_to_analog_id[button_id]] / 255
@@ -196,6 +198,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
     def set_rumble(self, motor_num, strength):
         """
         Set rumble motor strength. Set on next update() call.
+
         :param int motor_num: whiich motor to affect: 0, 1
         :param float stregnth amount of rumble, 0-1
         """

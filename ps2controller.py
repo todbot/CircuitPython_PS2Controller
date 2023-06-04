@@ -67,21 +67,37 @@ class PS2Button:
     """PS2 Button constants mapping button name to number"""
 
     SELECT = 0
+    """SELECT button, digital only"""
     L3 = 1
+    """L3 button (left stick push), digital only"""
     R3 = 2
+    """R3 button (right stick push), digital only"""
     START = 3
+    """START button, digital only (pressure)"""
     UP = 4
+    """D-pad UP, digital and analog (pressure)"""
     RIGHT = 5
+    """D-pad RIGHT, digital and analog (pressure)"""
     DOWN = 6
+    """D-pad DOWN, digital and analog (pressure)"""
     LEFT = 7
+    """D-pad LEFT, digital and analog (pressure)"""
     L2 = 8
+    """Left lower shoulder trigger button, digital and analog (pressure)"""
     R2 = 9
+    """Right lower shoulder trigger button, digital and analog (pressure)"""
     L1 = 10
+    """Left upper shoulder trigger button, digital and analog (pressure)"""
     R1 = 11
+    """Right upper shoulder trigger button, digital and analog (pressure)"""
     TRIANGLE = 12
+    """Triangle (green) action button, digital and analog (pressure)"""
     CIRCLE = 13
+    """Circle (red) action button, digital and analog (pressure)"""
     CROSS = 14
+    """Cross (blue) action button, digital and analog (pressure)"""
     SQUARE = 15
+    """Square (pink) action button, digital and analog (pressure)"""
 
     # fmt: off
     button_to_analog_id = (-1, -1, -1, -1, 11, 9, 12, 10, 19, 20, 17, 18, 13, 14, 15, 16)

@@ -104,7 +104,7 @@ Usage Example
 References
 ==========
 
-This library is a fairly direct port of `madsci1016/Arduino-PS2X<https://github.com/madsci1016/Arduino-PS2X>`
+This library is a fairly direct port of `madsci1016/Arduino-PS2X <https://github.com/madsci1016/Arduino-PS2X>`
 
 Other resources that have been helpful:
 

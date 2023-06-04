@@ -1,4 +1,3 @@
-# SPDX-FileCopyrightText: 2017 Scott Shawcroft, written for Adafruit Industries
 # SPDX-FileCopyrightText: Copyright (c) 2023 Tod Kurt
 #
 # SPDX-License-Identifier: MIT
@@ -19,7 +18,6 @@ Implementation Notes
 * Sony PS2 Controller or compatible gamepad
 
 
-
 **Software and Dependencies:**
 
 * Adafruit CircuitPython firmware for the supported boards:
@@ -36,18 +34,20 @@ __repo__ = "https://github.com/todbot/CircuitPython_PS2Controller.git"
 
 from collections import namedtuple
 import time
+from micropython import const
 import digitalio
 
-# magic config strings sent to the controller
+# config strings sent to the controller
 _enter_config = (0x01, 0x43, 0x00, 0x01, 0x00)
 _set_mode = (0x01, 0x44, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00)
 _set_bytes_large = (0x01, 0x4F, 0x00, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x00)
 _exit_config = (0x01, 0x43, 0x00, 0x00, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A)
-_enable_rumble = (0x01, 0x4D, 0x00, 0x00, 0x01)
+# _enable_rumble = (0x01, 0x4D, 0x00, 0x00, 0x01)
+_enable_rumble = (0x01, 0x4D, 0x00, 0x01, 0x01, 0xFF, 0xFF, 0xFF, 0xFF)
 _type_read = (0x01, 0x45, 0x00, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A)
 
-_CTRL_BYTE_DELAY_MICROS = 4  # microseconds
-_CTRL_CLK_DELAY_MICROS = 5  # microseconds
+_CTRL_BYTE_DELAY_MICROS = const(4)  # microseconds
+_CTRL_CLK_DELAY_MICROS = const(5)  # microseconds
 
 
 def _delay_micros(usec):
@@ -58,29 +58,43 @@ def _delay_millis(msec):
     time.sleep(msec / 1_000)
 
 
-ButtonEvent = namedtuple("ButtonEvent", ("number", "presssed", "released", "name"))
-
-button_names = (
-    "SELECT",
-    "L3",
-    "R3",
-    "START",
-    "UP",
-    "RIGHT",
-    "DOWN",
-    "LEFT",
-    "L2",
-    "R2",
-    "L1",
-    "R1",
-    "TRIANGLE",
-    "CIRCLE",
-    "CROSS",
-    "SQUARE",
-)
+#
+PS2ButtonEvent = namedtuple("PS2ButtonEvent", ("id", "pressed", "released", "name"))
 
 
-class PS2Controller:
+# pylint: disable-msg=(invalid-name, too-few-public-methods)
+class PS2Button:
+    """PS2 Button constants mapping button name to number"""
+
+    SELECT = 0
+    L3 = 1
+    R3 = 2
+    START = 3
+    UP = 4
+    RIGHT = 5
+    DOWN = 6
+    LEFT = 7
+    L2 = 8
+    R2 = 9
+    L1 = 10
+    R1 = 11
+    TRIANGLE = 12
+    CIRCLE = 13
+    CROSS = 14
+    SQUARE = 15
+
+    # fmt: off
+    button_to_analog_id = (-1, -1, -1, -1, 11, 9, 12, 10, 19, 20, 17, 18, 13, 14, 15, 16)
+
+    names = ("SELECT", "L3", "R3", "START", "UP", "RIGHT", "DOWN", "LEFT",
+             "L2", "R2", "L1", "R1", "TRIANGLE", "CIRCLE", "CROSS", "SQUARE")
+    # fmt: on
+
+
+# pylint: enable-msg=(invalid-name, too-few-public-methods)
+
+
+class PS2Controller:  # pylint: disable=too-many-instance-attributes
     """
     Driver to read and control a Sony PS2 controller
 
@@ -88,13 +102,13 @@ class PS2Controller:
     :param ~microcontroller.Pin cmd: PS2 command pin (orange wire)
     :param ~microcontroller.Pin att: PS2 attention pin (yellow wire)
     :param ~microcontroller.Pin dat: PS2 data pin (brown wire)
-    :param bool enable_pressue: True to enable reading analog button pressure
-    :param bool enable_rumbling: True to enable controlling rumble motors
+    :param bool enable_pressure: True to enable reading analog button pressure
+    :param bool enable_rumble: True to enable controlling rumble motors
                                  (needs extra voltage and current)
     """
 
     def __init__(
-        self, clk, cmd, att, dat, enable_pressure=False, enable_rumbling=False
+        self, clk, cmd, att, dat, enable_pressure=False, enable_rumble=False
     ):  # pylint: disable=(too-many-arguments)
         self.clk_pin = digitalio.DigitalInOut(clk)
         self.att_pin = digitalio.DigitalInOut(att)
@@ -108,7 +122,8 @@ class PS2Controller:
         self.ps2data = [0] * 21  # holds raw data from controller
 
         self.enable_pressure = enable_pressure
-        self.enable_rumbling = enable_rumbling
+        self.enable_rumble = enable_rumble
+        self.rumble_motors = [0, 0]  # left, right?
 
         self._read_delay_millis = 1
 
@@ -124,7 +139,7 @@ class PS2Controller:
         self.update()  # get initial values
 
     def update(self):
-        """Read the controller and return a list of ButtonEvents"""
+        """Read the controller and return a list of PS2ButtonEvents"""
         self._read_gamepad()
 
         self._last_buttons = self._buttons
@@ -135,12 +150,24 @@ class PS2Controller:
             if self._last_buttons & (1 << i) != self._buttons & (1 << i):
                 pressed = (self._buttons & (1 << i)) == 0
                 released = not pressed
-                events.append(ButtonEvent(i, pressed, released, button_names[i]))
+                events.append(PS2ButtonEvent(i, pressed, released, PS2Button.names[i]))
         return events
 
     def buttons(self):
         """Return a 16-bit bitfield of the state of all buttons"""
         return self._buttons
+
+    def button(self, button_id):
+        """Return True if button is currently pressed
+        :param int button_id: 0-15 id number from PS2ButtonEvent.id or PS2Button.*
+        """
+        return (self._buttons & (1 << button_id)) == 0
+
+    def analog_button(self, button_id):
+        """Return analog pressure value for button
+        :param int button_id 0-15 id number PS2ButtonEvent.id or PS2Button.*
+        """
+        return self.ps2data[PS2Button.button_to_analog_id[button_id]] / 255
 
     def analog_right(self):
         """Return a (x,y) tuple of the right analog stick"""
@@ -149,6 +176,14 @@ class PS2Controller:
     def analog_left(self):
         """Return a (x,y) tuple of the left analog stick"""
         return (self.ps2data[7], self.ps2data[8])
+
+    def set_rumble(self, motor_num, strength):
+        """
+        Set rumble motor strength. Set on next update() call.
+        :param int motor_num: whiich motor to affect: 0, 1
+        :param float stregnth amount of rumble, 0-1
+        """
+        self.rumble_motors[motor_num] = min(max(strength, 0), 1)
 
     def _config_gamepad(self):
         # "new error checking. First, read gamepad a few times to see if it's talking"
@@ -180,8 +215,8 @@ class PS2Controller:
             self.controller_type = temp[3]
 
             self._send_command_string(_set_mode)
-            # if self.enable_rumble:
-            #  self._send_command_string(_enable_rumble)
+            if self.enable_rumble:
+                self._send_command_string(_enable_rumble)
             if self.enable_pressure:
                 self._send_command_string(_set_bytes_large)
             self._send_command_string(_exit_config)
@@ -206,8 +241,8 @@ class PS2Controller:
         return False
 
     def _read_gamepad(self):  # motor1=False, motor2=False):
-        motor1_val = 0  # tbd
-        motor2_val = 0  # tbd
+        motor1_val = int(self.rumble_motors[0] * 255)
+        motor2_val = int(self.rumble_motors[1] * 255)
 
         dword1 = (0x01, 0x42, 0, motor1_val, motor2_val, 0, 0, 0, 0)  # 9 values
         dword2 = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)  # 12 values, all zero
@@ -225,7 +260,7 @@ class PS2Controller:
                 self.ps2data[i] = self._gamepad_shiftinout(dword1[i])
 
             # "if controller is in full data return mode, get the rest of data"
-            if self.ps2data[1] == 0x79:
+            if self.ps2data[1] == 0x79:  # 0x79 == Dual Shock 2
                 for i in range(12):
                     self.ps2data[9 + i] = self._gamepad_shiftinout(dword2[i])
 
@@ -245,8 +280,8 @@ class PS2Controller:
     def _reconfig_gamepad(self):
         self._send_command_string(_enter_config)
         self._send_command_string(_set_mode)
-        # if enable_rumble:
-        # self._send_command_string(_enable_rumble)
+        if self.enable_rumble:
+            self._send_command_string(_enable_rumble)
         if self.enable_pressure:
             self._send_command_string(_set_bytes_large)
         self._send_command_string(_exit_config)

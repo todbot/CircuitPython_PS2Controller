@@ -26,6 +26,7 @@ keywords = [
     "micropython",
     "ps2controller",
     "ps2",
+    "psx",
     "controller",
     "gamepad",
     "sony",

@@ -101,6 +101,18 @@ Usage Example
             print("sticks: L:", ps2.analog_left(), "R:", ps2.analog_right())
 
 
+References
+==========
+
+This library is a fairly direct port of `madsci1016/Arduino-PS2X<https://github.com/madsci1016/Arduino-PS2X>`
+
+Other resources that have been helpful:
+
+* https://github.com/madsci1016/Arduino-PS2X
+* https://github.com/SukkoPera/PsxNewLib
+* https://github.com/nandanhere/PiPyPS2
+* https://github.com/veroxzik/arduino-psx-controller
+
 Documentation
 =============
 API documentation for this library can be found on `Read the Docs <https://circuitpython-ps2controller.readthedocs.io/>`_.

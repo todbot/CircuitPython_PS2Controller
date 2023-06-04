@@ -108,10 +108,13 @@ This library is a fairly direct port of `madsci1016/Arduino-PS2X <https://github
 
 Other resources that have been helpful:
 
-* https://github.com/madsci1016/Arduino-PS2X
+* https://store.curiousinventor.com/guides/PS2/
+* https://gist.github.com/scanlime/5042071
+* https://gamesx.com/wiki/doku.php?id=controls:playstation_controller
 * https://github.com/SukkoPera/PsxNewLib
 * https://github.com/nandanhere/PiPyPS2
 * https://github.com/veroxzik/arduino-psx-controller
+* https://github.com/madsci1016/Arduino-PS2X
 
 Documentation
 =============

@@ -198,9 +198,8 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
     def set_rumble(self, motor_num, strength):
         """
         Set rumble motor strength. Set on next update() call.
-
         :param int motor_num: whiich motor to affect: 0, 1
-        :param float stregnth amount of rumble, 0-1
+        :param float stregnth: amount of rumble, 0.0-1.0
         """
         self.rumble_motors[motor_num] = min(max(strength, 0), 1)
 

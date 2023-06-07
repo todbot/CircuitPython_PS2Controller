@@ -42,7 +42,6 @@ _enter_config = (0x01, 0x43, 0x00, 0x01, 0x00)
 _set_mode = (0x01, 0x44, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00)
 _set_bytes_large = (0x01, 0x4F, 0x00, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x00)
 _exit_config = (0x01, 0x43, 0x00, 0x00, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A)
-# _enable_rumble = (0x01, 0x4D, 0x00, 0x00, 0x01)
 _enable_rumble = (0x01, 0x4D, 0x00, 0x01, 0x01, 0xFF, 0xFF, 0xFF, 0xFF)
 _type_read = (0x01, 0x45, 0x00, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A)
 
@@ -135,19 +134,21 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         self.cmd_pin.switch_to_output(value=False)
         self.dat_pin.switch_to_input(pull=digitalio.Pull.UP)
 
+        """The raw data from the controller"""
         self.ps2data = [0] * 21  # holds raw data from controller
 
         self.enable_pressure = enable_pressure
         self.enable_rumble = enable_rumble
         self.rumble_motors = [0, 0]  # left, right?
 
-        self._read_delay_millis = 1
+        self._read_delay_micros = 100  # was read_delay = 1 (millis)
 
         self.cmd_pin.value = True  # CMD_SET()
         self.clk_pin.value = True  # CLK_SET()
 
         self._buttons = 0
         self._last_buttons = 0
+        self.last_dt = 0
 
         if not self._config_gamepad():
             print("could not configure controller")
@@ -155,8 +156,12 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         self.update()  # get initial values
 
     def update(self):
-        """Read the controller and return a list of PS2ButtonEvents"""
+        """Read the controller and return a list of PS2ButtonEvents.
+        Must be called frequently or the controller disconnects.
+        """
+        startt = time.monotonic()
         self._read_gamepad()
+        self.last_dt = time.monotonic() - startt
 
         self._last_buttons = self._buttons
         self._buttons = self.ps2data[4] << 8 | self.ps2data[3]
@@ -213,6 +218,8 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             print("\tExpected 0x41,0x42,0x73,0x79 but got %02x" % self.ps2data[1])
             return False
 
+        self.read_delay_micros = 100
+
         for _ in range(10):
             self._send_command_string(_enter_config)
 
@@ -242,7 +249,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             self._read_gamepad()
 
             if self.enable_pressure:
-                if self.ps2data[1] == 0x79:
+                if self.ps2data[1] == 0x79:  # Dual Shock2
                     return True
                 # TODO: handle case where will not switch to pressure mode
 
@@ -250,8 +257,8 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
                 return True
 
             # "add 1ms to read_delay"
-            self._read_delay_millis += 1
-            print("P2SController: could not configure, inreasing read_delay_millis")
+            self._read_delay_micros += 100  # lets do 0.1
+            print("P2SController: could not configure, increasing read_delay_micros")
 
         # couldn't get controller to do what we wanted
         print("PS2Controller: Controller not accepting commands.")
@@ -271,7 +278,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             self.clk_pin.value = True
             self.att_pin.value = False  # "LOW enable joystick"  (this is chip select)
 
-            _delay_micros(_CTRL_BYTE_DELAY_MICROS)
+            # _delay_micros(_CTRL_BYTE_DELAY_MICROS)
 
             # "Send the command to send button and joystick data"
             for i in range(9):
@@ -288,12 +295,12 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             # "We should be in analog mode for our data to be valid (analog == 0x7_)"
             if self.ps2data[1] & 0xF0 == 0x70:
                 # print("PS2Controller: we are in analog mode good!")
-                break
+                return
 
             # "If we got to here, we are not in analog mode, try to recover..."
             self._reconfig_gamepad()
             # "try to get back into Analog mode."
-            _delay_micros(self._read_delay_millis)
+            _delay_micros(self._read_delay_micros)
 
     def _reconfig_gamepad(self):
         self._send_command_string(_enter_config)
@@ -310,7 +317,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         for byte in cmdstr:
             self._gamepad_shiftinout(byte)
         self.att_pin.value = True  # "high disable joystick
-        _delay_millis(self._read_delay_millis)
+        _delay_micros(self._read_delay_micros)
 
     def _gamepad_shiftinout(self, byte_out):
         byte_in = 0
@@ -321,7 +328,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             if self.dat_pin.value:  # read data in
                 byte_in |= 1 << i
             self.clk_pin.value = True  # raise clock to signal end of bit write/read
-            _delay_micros(_CTRL_CLK_DELAY_MICROS)
+            # _delay_micros(_CTRL_CLK_DELAY_MICROS)
         self.cmd_pin.value = True  # return cmd pin back to idle
         _delay_micros(_CTRL_BYTE_DELAY_MICROS)
         return byte_in

@@ -327,7 +327,6 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
 
         # all commands have at least 3 bytes, so shift those out first
         inbufA = self._shift_inout_buf(cmd_out[0:3])
-        # print('\tinbufA', _hexify(inbufA))
 
         if _is_valid_reply(inbufA):
             reply_len = _get_reply_length(inbufA)
@@ -345,33 +344,27 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             inbufC = self._shift_inout_buf([0x5A] * num_left)
             return inbufA + inbufB + inbufC
 
-        # print("PS2Controller: invalid reply", _hexify(inbufA), "disconnected?")
         return inbufA  # on error
 
     def _enter_config_mode(self):
-        start_t = time.monotonic()
-        while (time.monotonic() - start_t) < _COMMAND_TIMEOUT_SECS:
-            self._attention()
-            inbuf = self._autoshift(_enter_config)
-            self._no_attention()
-
-            if _is_valid_reply(inbuf) and _is_config_reply(inbuf):
-                time.sleep(_MODE_SWITCH_DELAY_SECS)
-                return True
-        # print("PS2Controller: enter_config_mode timeout!!!")
-        return False
+        """Enter config mode to enable changing analog/digital/pressure modes"""
+        return self._change_config_mode(_enter_config)
 
     def _exit_config_mode(self):
+        """Exit config mode to go back to regular polling mode"""
+        return self._change_config_mode(_exit_config)
+
+    def _change_config_mode(self, outbuf):
         start_t = time.monotonic()
         while (time.monotonic() - start_t) < _COMMAND_TIMEOUT_SECS:
             self._attention()
-            inbuf = self._autoshift(_exit_config)
+            inbuf = self._autoshift(outbuf)
             self._no_attention()
 
             if _is_valid_reply(inbuf) and _is_config_reply(inbuf):
                 time.sleep(_MODE_SWITCH_DELAY_SECS)
                 return True
-        # print("PS2Controller: exit_config_mode timeout!!!")
+        # print("PS2Controller: change_config_mode timeout!!!")
         return False
 
     def _try_enable_mode(self, outbuf):

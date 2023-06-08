@@ -48,11 +48,11 @@ _MODE_SWITCH_DELAY_SECS = 0.50
 
 # fmt: off
 # Command to enter the controller configuration (also known as \a escape) mode
-_enter_config  = (0x01, 0x43, 0x00, 0x01, 0x5A) # , 0x5A, 0x5A, 0x5A, 0x5A)
-_exit_config   = (0x01, 0x43, 0x00, 0x00, 0x5A) #, 0x5A, 0x5A, 0x5A, 0x5A)
-_type_read     = (0x01, 0x45, 0x00) #, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A)
+_enter_config  = (0x01, 0x43, 0x00, 0x01, 0x5A)
+_exit_config   = (0x01, 0x43, 0x00, 0x00, 0x5A)
+_type_read     = (0x01, 0x45, 0x00)
 _set_mode      = (0x01, 0x44, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00)
-_enable_rumble = (0x01, 0x4D, 0x00, 0x00, 0x01) #, 0xff, 0xff, 0xff, 0xff)
+_enable_rumble = (0x01, 0x4D, 0x00, 0x00, 0x01)
 _set_pressures = (0x01, 0x4F, 0x00, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x00)
 # Command to read status of all buttons, 3 & 4 are rumble vals
 _poll_rumble   = (0x01, 0x42, 0x00, 0xFF, 0xFF)
@@ -136,19 +136,6 @@ class PS2Button:
     # fmt: on
 
 
-# class PSProtocol:
-#     """Which protocol the data returned is"""
-#     Unknown = const(0)
-#     Digital = const(1)
-#     DualShock = const(2)
-#     DualShock2 = const(3)
-#     GuitarHero = const(4)
-#     FlightStick = const(5)
-#     NegCon = const(6)
-#     JogCon = const(7)
-#     GunCon = const(8)
-
-
 class PS2Controller:  # pylint: disable=too-many-instance-attributes
     """
     Driver to read and control a Sony PS1 or PS2 wired controller
@@ -192,15 +179,18 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         self._buttons = 0
         self._last_buttons = 0
 
+        self.motor1_level = 250
+        self.motor2_level = 250
+
         if self._enter_config_mode():
             if self.enable_sticks:
-                self._enable_analog_sticks()
+                self._enable_config_analog_sticks()
 
             if self.enable_rumble:
-                self._enable_rumble()
+                self._enable_config_rumble()
 
             if self.enable_pressure:
-                self._enable_analog_buttons()
+                self._enable_config_analog_buttons()
 
             if not self._exit_config_mode():
                 print("config exit error")
@@ -234,8 +224,8 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         self._attention()
         if self.enable_rumble:
             pollr = list(_poll_rumble)
-            pollr[3] = 0xFF
-            pollr[4] = 0xFF
+            pollr[3] = self.motor1_level  # convert 0-1 to 0x00 - 0xff
+            pollr[4] = self.motor2_level
             inbuf = self._autoshift(pollr)
         else:
             inbuf = self._autoshift(_poll)
@@ -389,21 +379,21 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
                     return True
         return False
 
-    def _enable_analog_sticks(self, enable=True, locked=False):
+    def _enable_config_analog_sticks(self, enable=True, locked=False):
         """Attempt to enable analog joysticks"""
         outbuf = list(_set_mode)
         outbuf[3] = 1 * enable
         outbuf[4] = 1 * locked
         return self._try_enable_mode(outbuf)
 
-    def _enable_rumble(self, enable=True):
+    def _enable_config_rumble(self, enable=True):
         """Attempt to enable rumble motors"""
         outbuf = list(_enable_rumble)
-        outbuf[3] = 0xFF * enable
+        outbuf[3] = 0xFF * enable  # convert True/False to 0xFF/0x00
         outbuf[4] = 0xFF * enable
         return self._try_enable_mode(outbuf)
 
-    def _enable_analog_buttons(self, enable=True):
+    def _enable_config_analog_buttons(self, enable=True):
         """Attempt to enable analog (pressure) buttons"""
         outbuf = list(_set_pressures)
         if not enable:

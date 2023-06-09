@@ -128,8 +128,6 @@ This library is highly inspired by the `SukkoPera/PsxNewLib <https://github.com/
 It currently has only been tested on a handful of PS1 and PS2 controllers,
 but it should be easy to add any specialized controller tuning.
 
-For
-
 Other resources that have been helpful:
 
 * https://store.curiousinventor.com/guides/PS2/

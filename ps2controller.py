@@ -70,6 +70,7 @@ def _is_config_reply(status):
 
 
 def _get_reply_length(status):
+    """Returns length of a command reply from controller status"""
     return (status[1] & 0x0F) * 2
 
 
@@ -85,8 +86,8 @@ def _hexify(buf):
     return " ".join("%02x" % v for v in buf)
 
 
-""" The event 'objects' returned by ps2.update()"""
 PS2ButtonEvent = namedtuple("PS2ButtonEvent", ("id", "pressed", "released", "name"))
+""" The event 'objects' returned by ps2.update()"""
 
 
 # pylint: disable-msg=(invalid-name, too-few-public-methods)
@@ -179,21 +180,15 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         self._buttons = 0
         self._last_buttons = 0
 
-        self.motor1_level = 250
-        self.motor2_level = 250
+        self.motor1_level = 0  # 0-255, 40 is where motor starts moving
+        self.motor2_level = 0
 
         if self._enter_config_mode():
-            if self.enable_sticks:
-                self._enable_config_analog_sticks()
-
-            if self.enable_rumble:
-                self._enable_config_rumble()
-
-            if self.enable_pressure:
-                self._enable_config_analog_buttons()
-
+            self._enable_config_analog_sticks(enable_sticks)
+            self._enable_config_rumble(enable_rumble)
+            self._enable_config_analog_buttons(enable_pressure)
             if not self._exit_config_mode():
-                print("config exit error")
+                print("PS2Controller: config exit error")
         else:
             print("PS2Controller: could not connect")
 
@@ -224,7 +219,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         self._attention()
         if self.enable_rumble:
             pollr = list(_poll_rumble)
-            pollr[3] = self.motor1_level  # convert 0-1 to 0x00 - 0xff
+            pollr[3] = self.motor1_level
             pollr[4] = self.motor2_level
             inbuf = self._autoshift(pollr)
         else:
@@ -253,18 +248,25 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
         return (self._buttons & (1 << button_id)) == 0
 
     def analog_button(self, button_id):
-        """Return analog pressure value for button
+        """Return analog pressure (0-255) value for button,
+        if in pressure mode, otherwise -1.
 
         :param int button_id 0-15 id number PS2ButtonEvent.id or PS2Button.*
         """
-        return self.data[PS2Button.button_to_analog_id[button_id]] / 255
+        if len(self.data) < 21:
+            return -1
+        return self.data[PS2Button.button_to_analog_id[button_id]]
 
     def analog_right(self):
-        """Return a (x,y) tuple of the right analog stick"""
+        """Return (x,y) tuple (0-255,0-255) of the right analog stick, if present."""
+        if len(self.data) < 6:
+            return (-1, -1)
         return (self.data[5], self.data[6])
 
     def analog_left(self):
-        """Return a (x,y) tuple of the left analog stick"""
+        """Return (x,y) tuple (0-255,0-255) of the left analog stick, if present."""
+        if len(self.data) < 6:
+            return (-1, -1)
         return (self.data[7], self.data[8])
 
     def _attention(self):
@@ -288,7 +290,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             self.clk_pin.value = False  # clock LOW
             _delay_micros(_HOLD_TIME_MICROS)
             self.clk_pin.value = True  # clock HIGH
-            # _delay_micros( _HOLD_TIME_MICROS )  # this is uneeded in CirPy because slow
+            _delay_micros(_HOLD_TIME_MICROS)  # seems uneeded in CirPy because slow
             if self.dat_pin.value:  # read IN data on dat pin
                 byte_in |= 1 << i
         return byte_in
@@ -379,7 +381,7 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
                     return True
         return False
 
-    def _enable_config_analog_sticks(self, enable=True, locked=False):
+    def _enable_config_analog_sticks(self, enable=True, locked=True):
         """Attempt to enable analog joysticks"""
         outbuf = list(_set_mode)
         outbuf[3] = 1 * enable

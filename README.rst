@@ -116,7 +116,7 @@ The wiring is:
 
 Here's one way to wire that up on a Raspberry Pi Pico:
 
-.. image:: ps2controller_wiring.png
+.. image:: https://raw.githubusercontent.com/todbot/CircuitPython_PS2Controller/main/docs/ps2controller_wiring.png
 
 (Thanks to `Vanepp <https://forum.fritzing.org/u/vanepp/summary>`_ via `nandanhere/PiPyPS2 <https://github.com/nandanhere/PiPyPS2>`_ for Fritzing wiring diagram)
 

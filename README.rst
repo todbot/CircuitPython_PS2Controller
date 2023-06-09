@@ -18,7 +18,7 @@ Introduction
     :target: https://github.com/psf/black
     :alt: Code Style: Black
 
-CircuitPython library to read Sony PS2 game controllers
+CircuitPython library to read Sony PS2 or PS1 game controllers
 
 
 Dependencies
@@ -93,18 +93,42 @@ Usage Example
     # one way to wire this up, for example on a Pico
     ps2 = PS2Controller(dat=board.GP2, cmd=board.GP3, att=board.GP4, clk=board.GP5)
 
-    print("hi press buttons")
+    print("hi! Press buttons")
     while True:
         events = ps2.update()
         if events:
             print("events", events)
             print("sticks: L:", ps2.analog_left(), "R:", ps2.analog_right())
 
+Wiring
+======
+
+Wiring to the PSX controller needs four GPIO pins.These can be any pins.
+The wiring is:
+
+* CLK pin - clock OUT to controller (blue wire)
+* CMD pin - command data OUT to controller (orange wire)
+* ATT pin - attention / chip select OUT to controller (yellow wire)
+* DAT pin - data IN from controller (brown wire)
+* GND pin - signal ground (black wire)
+* VCC pin - +3.3V power (red wire)
+* VCC2 pin - +7.5V power to rumble motors (optional)
+
+Here's one way to wire that up on a Raspberry Pi Pico:
+
+.. image:: ps2controller_wiring.png
+
+(Thanks to `Vanepp <https://forum.fritzing.org/u/vanepp/summary>`_ via `nandanhere/PiPyPS2 <https://github.com/nandanhere/PiPyPS2>`_ for Fritzing wiring diagram)
+
 
 References
 ==========
 
-This library is a fairly direct port of `madsci1016/Arduino-PS2X <https://github.com/madsci1016/Arduino-PS2X>`_.
+This library is highly inspired by the `SukkoPera/PsxNewLib <https://github.com/SukkoPera/PsxNewLib>`_ library.
+It currently has only been tested on a handful of PS1 and PS2 controllers,
+but it should be easy to add any specialized controller tuning.
+
+For
 
 Other resources that have been helpful:
 

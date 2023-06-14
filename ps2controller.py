@@ -289,10 +289,10 @@ class PS2Controller:  # pylint: disable=too-many-instance-attributes
             self.cmd_pin.value = (byte_out & (1 << i)) != 0  # send OUT data on cmd pin
             self.clk_pin.value = False  # clock LOW
             _delay_micros(_HOLD_TIME_MICROS)
-            self.clk_pin.value = True  # clock HIGH
-            _delay_micros(_HOLD_TIME_MICROS)  # seems uneeded in CirPy because slow
             if self.dat_pin.value:  # read IN data on dat pin
                 byte_in |= 1 << i
+            self.clk_pin.value = True  # clock HIGH
+            _delay_micros(_HOLD_TIME_MICROS)
         return byte_in
 
     def _shift_inout_buf(self, bytes_out):

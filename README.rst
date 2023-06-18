@@ -18,7 +18,7 @@ Introduction
     :target: https://github.com/psf/black
     :alt: Code Style: Black
 
-CircuitPython library to read Sony PS2 or PS1 game controllers
+CircuitPython library to read Sony PS2 or PS1 ("PSX") game controllers
 
 
 Dependencies
